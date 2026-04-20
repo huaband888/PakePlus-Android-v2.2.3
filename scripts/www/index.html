@@ -1,11 +1,583 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        PakePlus
-    </body>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>雾霾探测系统 · 完整版（含定位）</title>
+    <!-- ECharts 图表库 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <!-- 百度地图API -->
+    <script type="text/javascript" src="https://api.map.baidu.com/api?v=3.0&ak=7S4eGpyDPBYnLo68MTZteUVH17AwAQ9K"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+            background: linear-gradient(145deg, #f5f7fa 0%, #e9ecf2 100%);
+            min-height: 100vh;
+            padding: 16px 12px 30px;
+        }
+        .app-container {
+            max-width: 480px;
+            margin: 0 auto;
+        }
+        .header-card {
+            background: #1e2b3c;
+            color: white;
+            padding: 20px 18px;
+            border-radius: 28px;
+            margin-bottom: 20px;
+            box-shadow: 0 12px 22px -8px rgba(0,20,40,0.25);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .location-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .location-icon {
+            font-size: 28px;
+            line-height: 1;
+        }
+        .city-name {
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .refresh-btn, .location-btn {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            color: white;
+            font-size: 16px;
+            padding: 10px 16px;
+            border-radius: 40px;
+            font-weight: 500;
+            backdrop-filter: blur(4px);
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            margin-left: 8px;
+        }
+        .refresh-btn:active, .location-btn:active {
+            background: rgba(255,255,255,0.3);
+            transform: scale(0.96);
+        }
+        .location-btn:disabled {
+            background: rgba(255,255,255,0.08);
+            cursor: not-allowed;
+        }
+        .weather-panel {
+            background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 32px;
+            padding: 24px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+        .aqi-badge {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 18px;
+        }
+        .aqi-label {
+            font-size: 18px;
+            font-weight: 500;
+            color: #334e68;
+        }
+        .aqi-value {
+            font-size: 56px;
+            font-weight: 800;
+            line-height: 1;
+            color: #1e2b3c;
+        }
+        .aqi-category {
+            font-size: 18px;
+            font-weight: 600;
+            padding: 6px 16px;
+            border-radius: 40px;
+            background: #d4e2f0;
+            color: #1e3e6d;
+        }
+        .weather-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px 12px;
+            margin: 20px 0 10px;
+        }
+        .weather-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: white;
+            padding: 12px 16px;
+            border-radius: 24px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.02);
+        }
+        .location-detail {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 24px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.02);
+            margin-bottom: 16px;
+            font-size: 14px;
+            color: #334e68;
+            line-height: 1.5;
+        }
+        .weather-icon {
+            font-size: 30px;
+        }
+        .weather-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .weather-label {
+            font-size: 14px;
+            color: #64748b;
+        }
+        .weather-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0f263b;
+        }
+        .chart-card {
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 32px;
+            padding: 20px 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.03);
+            border: 1px solid rgba(255,255,255,0.6);
+        }
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            padding-left: 6px;
+            color: #1f3a4e;
+        }
+        #chart-container {
+            width: 100%;
+            height: 280px;
+        }
+        .footer-note {
+            text-align: center;
+            color: #5e7180;
+            font-size: 13px;
+            margin-top: 12px;
+            opacity: 0.8;
+        }
+        .error-message {
+            color: #e74c3c;
+            text-align: center;
+            padding: 10px;
+            font-size: 14px;
+        }
+        .status-badge {
+            display: inline-block;
+            background: #e8f0fe;
+            color: #1e3e6d;
+            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <!-- Header：城市展示 -->
+    <div class="header-card">
+        <div class="location-section">
+            <span class="location-icon">📍</span>
+            <span class="city-name" id="city-display">西安</span>
+            <span class="status-badge" id="location-source">默认</span>
+        </div>
+        <div>
+            <button class="location-btn" id="location-btn">📍 定位</button>
+            <button class="refresh-btn" id="refresh-btn">⟳ 刷新</button>
+        </div>
+    </div>
+
+    <!-- Body：天气与AQI -->
+    <div class="weather-panel">
+        <!-- 定位详情展示 -->
+        <div id="location-detail" class="location-detail" style="display: none;"></div>
+        
+        <div class="aqi-badge">
+            <span class="aqi-label">空气质量指数</span>
+            <span class="aqi-category" id="aqi-cat">--</span>
+        </div>
+        <div style="display: flex; align-items: baseline; justify-content: space-between;">
+            <span class="aqi-value" id="aqi-value">---</span>
+            <span style="color:#64748b;" id="update-time"></span>
+        </div>
+        <div class="weather-grid">
+            <div class="weather-item">
+                <span class="weather-icon">🌡️</span>
+                <div class="weather-info">
+                    <span class="weather-label">温度</span>
+                    <span class="weather-number" id="temp-value">--°C</span>
+                </div>
+            </div>
+            <div class="weather-item">
+                <span class="weather-icon">💧</span>
+                <div class="weather-info">
+                    <span class="weather-label">湿度</span>
+                    <span class="weather-number" id="humi-value">--%</span>
+                </div>
+            </div>
+            <div class="weather-item">
+                <span class="weather-icon">🌬️</span>
+                <div class="weather-info">
+                    <span class="weather-label">天气</span>
+                    <span class="weather-number" id="weather-text" style="font-size: 18px;">--</span>
+                </div>
+            </div>
+            <div class="weather-item">
+                <span class="weather-icon">🍃</span>
+                <div class="weather-info">
+                    <span class="weather-label">PM2.5</span>
+                    <span class="weather-number" id="pm25-value">--</span>
+                </div>
+            </div>
+        </div>
+        <div id="error-msg" class="error-message"></div>
+    </div>
+
+    <!-- 折线图 -->
+    <div class="chart-card">
+        <div class="chart-title">📈 温湿度趋势 (动态更新)</div>
+        <div id="chart-container"></div>
+    </div>
+    <div class="footer-note">数据来源：和风天气 · 定位服务：百度地图</div>
+</div>
+
+<script>
+    (function(){
+        "use strict";
+
+        // ==================== 🔑 配置项 ====================
+        // 和风天气配置
+        const QWEATHER_HOST = 'pa4nmuqedn.re.qweatherapi.com';
+        const QWEATHER_API_KEY = 'b1e502dc06384081a047a12c69d60ddd';
+        // 默认城市
+        const DEFAULT_CITY = '北京';
+        // ========================================================
+
+        // DOM 元素
+        const cityDisplay = document.getElementById('city-display');
+        const locationSource = document.getElementById('location-source');
+        const locationDetail = document.getElementById('location-detail');
+        const locationBtn = document.getElementById('location-btn');
+        const aqiValue = document.getElementById('aqi-value');
+        const aqiCat = document.getElementById('aqi-cat');
+        const tempValue = document.getElementById('temp-value');
+        const humiValue = document.getElementById('humi-value');
+        const weatherText = document.getElementById('weather-text');
+        const pm25Value = document.getElementById('pm25-value');
+        const updateTimeSpan = document.getElementById('update-time');
+        const errorMsg = document.getElementById('error-msg');
+        const refreshBtn = document.getElementById('refresh-btn');
+
+        let chartInstance = null;
+        let currentCity = DEFAULT_CITY;
+
+        // ---------- 百度地图定位功能 ----------
+        function getLocationAndCity() {
+            // 禁用定位按钮，防止重复点击
+            locationBtn.disabled = true;
+            locationBtn.innerText = '定位中...';
+            errorMsg.innerText = '';
+            
+            // 初始化百度地图定位
+            const geolocation = new BMap.Geolocation();
+
+            geolocation.getCurrentPosition(function(position) {
+                if (this.getStatus() === BMAP_STATUS_SUCCESS) {
+                    const point = position.point;
+                    const lng = point.lng;
+                    const lat = point.lat;
+
+                    // 解析地址信息
+                    const geocoder = new BMap.Geocoder();
+                    geocoder.getLocation(point, function(res) {
+                        locationBtn.disabled = false;
+                        locationBtn.innerText = '📍 定位';
+                        
+                        if (res && res.addressComponents) {
+                            const addressInfo = res.addressComponents;
+                            const cityName = addressInfo.city || addressInfo.province;
+                            const fullAddress = res.address;
+                            
+                            // 显示定位详情
+                            locationDetail.style.display = 'block';
+                            locationDetail.innerHTML = `
+                                <strong>定位详情：</strong>${fullAddress}<br>
+                                <strong>经纬度：</strong>${lng.toFixed(4)}, ${lat.toFixed(4)}
+                            `;
+                            
+                            // 更新城市并获取天气
+                            window.HazeApp.setCity(cityName);
+                        } else {
+                            errorMsg.innerText = '城市解析失败，使用默认城市';
+                            locationSource.innerText = '默认';
+                        }
+                    });
+                } else {
+                    locationBtn.disabled = false;
+                    locationBtn.innerText = '📍 定位';
+                    errorMsg.innerText = '定位失败，请检查浏览器定位权限或网络';
+                    locationSource.innerText = '默认';
+                }
+            }, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            });
+        }
+
+        // ---------- 核心：获取完整天气数据（含空气质量）----------
+        async function fetchFullWeather(cityName) {
+            if (!cityName) {
+                errorMsg.innerText = '城市信息无效';
+                return null;
+            }
+            
+            // 显示加载状态
+            tempValue.innerText = '--°C';
+            humiValue.innerText = '--%';
+            weatherText.innerText = '加载中';
+            pm25Value.innerText = '--';
+            aqiValue.innerText = '---';
+            aqiCat.innerText = '--';
+            errorMsg.innerText = '';
+            
+            try {
+                // 1. 获取城市经纬度
+                console.log(`[天气模块] 正在查询: ${cityName}`);
+                const geoUrl = `https://${QWEATHER_HOST}/geo/v2/city/lookup?location=${encodeURIComponent(cityName)}`;
+                const geoResp = await fetch(geoUrl, {
+                    headers: { 'X-QW-Api-Key': QWEATHER_API_KEY }
+                });
+                const geoData = await geoResp.json();
+                
+                if (geoData.code !== '200' || !geoData.location?.length) {
+                    throw new Error(`城市查询失败: ${geoData.code || '未知错误'}`);
+                }
+                
+                const location = geoData.location[0];
+                const { id, name, lat, lon } = location;
+                
+                console.log(`[天气模块] 城市: ${name}, 坐标: (${lat}, ${lon})`);
+                
+                // 2. 并行请求：基础天气 + 空气质量
+                const weatherUrl = `https://${QWEATHER_HOST}/v7/weather/now?location=${id}`;
+                const airUrl = `https://${QWEATHER_HOST}/airquality/v1/current/${lat}/${lon}`;
+                
+                const [weatherResp, airResp] = await Promise.all([
+                    fetch(weatherUrl, { headers: { 'X-QW-Api-Key': QWEATHER_API_KEY } }),
+                    fetch(airUrl, { headers: { 'X-QW-Api-Key': QWEATHER_API_KEY } })
+                ]);
+                
+                const weatherData = await weatherResp.json();
+                const airData = await airResp.json();
+                
+                console.log('[天气模块] 基础天气:', weatherData);
+                console.log('[天气模块] 空气质量:', airData);
+                
+                // 3. 解析数据
+                const result = {
+                    city: name,
+                    temperature: weatherData.now?.temp ? parseFloat(weatherData.now.temp) : null,
+                    humidity: weatherData.now?.humidity ? parseFloat(weatherData.now.humidity) : null,
+                    weatherText: weatherData.now?.text || '未知',
+                    aqi: airData.indexes?.[0]?.aqi ?? null,
+                    aqiCategory: airData.indexes?.[0]?.category ?? null,
+                    pm2p5: airData.pollutants?.find(p => p.code === 'pm2p5')?.concentration?.value ?? null
+                };
+                
+                return result;
+                
+            } catch (error) {
+                console.error('[天气模块] 错误:', error);
+                errorMsg.innerText = `获取失败: ${error.message}`;
+                return null;
+            }
+        }
+
+        // ---------- 更新界面 ----------
+        function updateUI(data) {
+            if (!data) return;
+            
+            const now = new Date();
+            updateTimeSpan.innerText = `更新 ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+            
+            // 城市
+            cityDisplay.innerText = data.city || currentCity;
+            
+            // 基础天气
+            if (data.temperature !== null) {
+                tempValue.innerText = `${data.temperature}°C`;
+                humiValue.innerText = `${data.humidity}%`;
+                weatherText.innerText = data.weatherText;
+                updateChart(data.temperature, data.humidity);
+            }
+            
+            // 空气质量
+            if (data.aqi !== null) {
+                aqiValue.innerText = data.aqi;
+                aqiCat.innerText = data.aqiCategory || '--';
+                pm25Value.innerText = data.pm2p5 !== null ? `${data.pm2p5}` : '--';
+            } else {
+                aqiValue.innerText = '---';
+                aqiCat.innerText = '无数据';
+                pm25Value.innerText = '--';
+            }
+            
+            // 模拟保存到服务器（实验要求）
+            console.log('[模拟保存] 数据已提交:', {
+                ...data,
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        // ---------- 刷新函数（供队友调用）----------
+        async function refreshWeather(cityName) {
+            const city = cityName || currentCity;
+            currentCity = city;
+            
+            const data = await fetchFullWeather(city);
+            if (data) {
+                updateUI(data);
+            }
+        }
+
+        // ---------- ECharts 折线图 ----------
+        function initChart() {
+            const chartDom = document.getElementById('chart-container');
+            if (chartDom) {
+                chartInstance = echarts.init(chartDom);
+                const option = {
+                    tooltip: { trigger: 'axis' },
+                    legend: { 
+                        data: ['温度 (°C)', '湿度 (%)'], 
+                        bottom: 0, 
+                        left: 'center',
+                        icon: 'roundRect',
+                        itemWidth: 20,
+                        itemHeight: 10
+                    },
+                    grid: { left: '10%', right: '8%', top: 25, bottom: 40 },
+                    xAxis: {
+                        type: 'category',
+                        data: ['1h前', '2h前', '3h前', '4h前', '5h前', '6h前', '现在'],
+                        axisLabel: { fontWeight: 500, fontSize: 12 }
+                    },
+                    yAxis: [
+                        { type: 'value', name: '温度 °C', min: 0, max: 40 },
+                        { type: 'value', name: '湿度 %', min: 0, max: 100 }
+                    ],
+                    series: [
+                        { 
+                            name: '温度 (°C)', type: 'line', 
+                            data: [22, 23, 24, 25, 24, 23, 22], 
+                            smooth: true, color: '#f39c12',
+                            lineStyle: { width: 3 },
+                            symbol: 'circle', symbolSize: 8
+                        },
+                        { 
+                            name: '湿度 (%)', type: 'line', yAxisIndex: 1,
+                            data: [45, 48, 52, 55, 60, 58, 62], 
+                            smooth: true, color: '#3498db',
+                            lineStyle: { width: 3 },
+                            symbol: 'circle', symbolSize: 8
+                        }
+                    ]
+                };
+                chartInstance.setOption(option);
+                window.addEventListener('resize', () => chartInstance.resize());
+            }
+        }
+
+        function updateChart(temp, humi) {
+            if (!chartInstance) return;
+            const option = chartInstance.getOption();
+            let tempData = option.series[0].data;
+            let humiData = option.series[1].data;
+            tempData.shift();
+            tempData.push(temp);
+            humiData.shift();
+            humiData.push(humi);
+            chartInstance.setOption({ series: [{ data: tempData }, { data: humiData }] });
+        }
+
+        // ==================== 暴露给队友的全局接口 ====================
+        window.HazeApp = {
+            /**
+             * 【定位模块调用】
+             * 当获取到新城市时，调用此方法更新天气
+             * @param {string} city - 城市名称
+             */
+            setCity: async function(city) {
+                locationSource.innerText = 'GPS定位';
+                await refreshWeather(city);
+            },
+            
+            /**
+             * 手动刷新当前城市天气
+             */
+            refresh: async function() {
+                await refreshWeather(currentCity);
+            },
+            
+            /**
+             * 获取当前城市
+             */
+            getCurrentCity: function() {
+                return currentCity;
+            },
+            
+            /**
+             * 获取当前天气数据（供其他模块读取）
+             */
+            getCurrentData: function() {
+                return {
+                    city: cityDisplay.innerText,
+                    temperature: tempValue.innerText,
+                    humidity: humiValue.innerText,
+                    weather: weatherText.innerText,
+                    aqi: aqiValue.innerText,
+                    aqiCategory: aqiCat.innerText,
+                    pm25: pm25Value.innerText
+                };
+            }
+        };
+
+        // ---------- 启动 ----------
+        async function main() {
+            initChart();
+            await refreshWeather(DEFAULT_CITY);
+            
+            // 绑定定位按钮事件
+            locationBtn.addEventListener('click', getLocationAndCity);
+            
+            // 绑定刷新按钮事件
+            refreshBtn.addEventListener('click', async () => {
+                await refreshWeather(currentCity);
+            });
+        }
+
+        main();
+    })();
+</script>
+</body>
 </html>
